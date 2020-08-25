@@ -14,13 +14,13 @@ class Retrievable(threading.Thread, metaclass=abc.ABCMeta):
     Thread実行はfunction「trigger_retrievable」を利用すること。
     """
 
-    def __init__(self, base_url: str):
-        self._base_url = base_url
-        self._result: list = None
+    def __init__(self, base_url: str, params={}):
+        self.__base_url = base_url
+        self.__params = params or {}
+        self.__result: list = None
         threading.Thread.__init__(self, name=base_url)
 
-    @final
-    def _retreive(self) -> list:
+    def __retreive(self) -> list:
         """urlのWeb contentを取得
 
         1. urlからresponseを取得する（tuple res.ok, res.url, res.content)
@@ -32,17 +32,17 @@ class Retrievable(threading.Thread, metaclass=abc.ABCMeta):
         Returns:
             list: res.content 解析済みの結果
         """
-        result = request_content(self._base_url)
+        result = request_content(self.__base_url, self.__params)
         if result is None or not result[0]:
             return None
         return self._parsing(result[2].decode())
 
     # 抽象メソッド override促すために、NotImplementedError
     @abc.abstractmethod
-    def _parsing(self, html_content: str) -> list:
-        """html_contentを解析する
+    def _parsing(self, content: str) -> list:
+        """contentを解析する
 
-        html_contentを解析し、好みのデータ配列に再構成
+        contentを解析し、好みのデータ配列に再構成する。
         子クラスにて処理をOverrideすること
 
         Args:
@@ -68,7 +68,7 @@ class Retrievable(threading.Thread, metaclass=abc.ABCMeta):
     def run(self):
         with Retrievable._cls_v_smp:
             print('run ' + self.name)
-            self._result = self._retreive()
+            self.__result = self.__retreive()
             wait_like_human(0.5, 1)
 
     @final
@@ -76,7 +76,7 @@ class Retrievable(threading.Thread, metaclass=abc.ABCMeta):
         # thread.startの後、結果データを取得する
         self.join()
         print('end ' + self.name)
-        return self._result
+        return self.__result
 
 
 def trigger_retrievable(entry: List[Retrievable], pool: int = 5) -> list:
@@ -88,7 +88,7 @@ def trigger_retrievable(entry: List[Retrievable], pool: int = 5) -> list:
     """
     Retrievable.set_pool_size(pool)
     threads = []
-    [(entr.start(), threads.append(entr)) for entr in entry]
-    payload = []
-    [payload.extend(entr.result()) for entr in threads]
-    return payload
+    for entr in entry:
+        entr.start()
+        threads.append(entr)
+    return [entr.result() for entr in threads][0]

@@ -46,7 +46,7 @@ def task_with_retry(retry=3, wait_time=1):
 
 
 @task_with_retry(retry=2, wait_time=3)
-def request_content(url: str, opts={}) -> any:
+def request_content(url: str,  params={}) -> any:
     """送信 [GET]
 
     Args:
@@ -56,7 +56,7 @@ def request_content(url: str, opts={}) -> any:
     Returns:
         tules[...]: res.ok, res.url, res.content
     """
-    with requests.get(url.format_map(opts)) as res:
+    with requests.get(url=url, params=params) as res:
         return res.ok, res.url, res.content
 
 
